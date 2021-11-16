@@ -101,9 +101,10 @@
     <Resource Include="Resources\octopuslogo.png" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Octopus.TaskTree">
-      <Version>1.0.1</Version>
-    </PackageReference>
+    <ProjectReference Include="..\Octopus\Octopus.csproj">
+      <Project>{73d3a8f1-c5ac-4d5a-b579-353fc25830c0}</Project>
+      <Name>Octopus</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -31,10 +31,12 @@
             </Radio>
         </RadioGroup>
     </Field>
-    <div>
-        <Button Color=Color.Primary Size=Size.Small Disabled=@IsBusy @onclick=(StartExec)>Start</Button>
-        <Button Color=Color.Secondary Size=Size.Small Disabled=@(!IsBusy) @onclick=(CancelExec)>Cancel</Button>
-        <Button Color=Color.Warning Size=Size.Small Disabled=@IsBusy @onclick=(ResetAll)>Reset tasks</Button>
+    <div style="display:flex;">
+        <div>
+            <Button Color=Color.Primary Size=Size.Small Disabled=@IsBusy @onclick=(StartExec)>Start</Button>
+            <Button Color=Color.Secondary Size=Size.Small Disabled=@(!IsBusy) @onclick=(CancelExec)>Cancel</Button>
+            <Button Color=Color.Warning Size=Size.Small Disabled=@IsBusy @onclick=(ResetAll)>Reset tasks</Button>
+        </div>
     </div>
 </div>
 
@@ -50,6 +52,15 @@
                 <TaskStatusBadge Status=@(context?.TaskStatus ?? default(TaskStatus)) /> @context?.Id
             </NodeContent>
         </TreeView>
+        <hr style="margin:10px 20px 10px 20px" />
+        <div style="display:flex; flex-wrap:wrap; margin-left:50px; margin-top:3px; font-size:11pt">
+            <span style="margin-right:20px"><TaskStatusBadge Status=TaskStatus.NotStarted /> NotStarted</span>
+            <span style="margin-right:20px"><TaskStatusBadge Status=TaskStatus.InProgress /> InProgress</span>
+            <span style="margin-right:20px"><TaskStatusBadge Status=TaskStatus.InDeterminate /> InDeterminate</span>
+            <span style="margin-right:20px"><TaskStatusBadge Status=TaskStatus.Completed /> Completed</span>
+            <span style="margin-right:20px"><TaskStatusBadge Status=TaskStatus.Failed /> Failed</span>
+            <span style="margin-right:20px"><TaskStatusBadge Status=TaskStatus.Cancelled /> Cancelled</span>
+        </div>
     </div>
 
     <div style="flex: 1; min-width:500px; ">

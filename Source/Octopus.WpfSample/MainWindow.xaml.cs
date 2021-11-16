@@ -21,33 +21,52 @@ namespace Octopus.Sample
             InitializeComponent();
 
             Dispatcher.UnhandledException += Dispatcher_UnhandledException;
-            CreateTasks();
+            CreateTasks(ExecutionMode.Series);
 
         }
 
-        private void CreateTasks()
+        CodeBehavior defaultCodeBehavior = new();
+
+        private void CreateTasks(ExecutionMode PreferredExecMode)
         {
-            CodeBehavior defaultCodeBehavior = new();
 
-            rootTask = new TaskNode("TaskNode-1");
-            rootTask.AddChild(new TaskNode("TaskNode-1.1", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 20 }, "1.1")));
-            var subTask = new TaskNode("TaskNode-1.2");
-            subTask.AddChild(new TaskNode("TaskNode-1.2.1", async (reporter, token) => await SimpleTimer(reporter, token,
-                defaultCodeBehavior with { ShouldPerformAnInDeterminateAction = true, InDeterminateActionDelay = 2000 }, "1.2.1")));
+            //rootTask = new TaskNode("TaskNode-1");
+            //rootTask.AddChild(new TaskNode("TaskNode-1.1", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 20 }, "1.1")));
+            //var subTask = new TaskNode("TaskNode-1.2");
+            //subTask.AddChild(new TaskNode("TaskNode-1.2.1", async (reporter, token) => await SimpleTimer(reporter, token,
+            //    defaultCodeBehavior with { ShouldPerformAnInDeterminateAction = true, InDeterminateActionDelay = 2000 }, "1.2.1")));
 
-            var subTask2 = new TaskNode("TaskNode-1.2.2");
-            subTask2.AddChild(new TaskNode("TaskNode-1.2.2.1", async (reporter, token) => await SimpleTimer(reporter, token,
-                defaultCodeBehavior with { ShouldThrowExceptionDuringProgress = false, IntervalDelay = 65 }, "1.2.2.1")));
+            //var subTask2 = new TaskNode("TaskNode-1.2.2");
+            //subTask2.AddChild(new TaskNode("TaskNode-1.2.2.1", async (reporter, token) => await SimpleTimer(reporter, token,
+            //    defaultCodeBehavior with { ShouldThrowExceptionDuringProgress = false, IntervalDelay = 65 }, "1.2.2.1")));
 
-            subTask.AddChild(subTask2);
-            subTask.AddChild(new TaskNode("TaskNode-1.2.3", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 60 }, "1.2.3")));
-            subTask.AddChild(new TaskNode("TaskNode-1.2.4", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 30 }, "1.2.4")));
+            //subTask.AddChild(subTask2);
+            //subTask.AddChild(new TaskNode("TaskNode-1.2.3", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 60 }, "1.2.3")));
+            //subTask.AddChild(new TaskNode("TaskNode-1.2.4", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 30 }, "1.2.4")));
 
-            rootTask.AddChild(subTask);
-            rootTask.AddChild(new TaskNode("TaskNode-1.3", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 160 }, "1.3")));
-            rootTask.AddChild(new TaskNode("TaskNode-1.4", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 50 }, "1.4")));
-            rootTask.AddChild(new TaskNode("TaskNode-1.5", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 20 }, "1.5")));
-            rootTask.AddChild(new TaskNode("TaskNode-1.6", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 250 }, "1.6")));
+            //rootTask.AddChild(subTask);
+            //rootTask.AddChild(new TaskNode("TaskNode-1.3", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 160 }, "1.3")));
+            //rootTask.AddChild(new TaskNode("TaskNode-1.4", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 50 }, "1.4")));
+            //rootTask.AddChild(new TaskNode("TaskNode-1.5", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 20 }, "1.5")));
+            //rootTask.AddChild(new TaskNode("TaskNode-1.6", async (reporter, token) => await SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 250 }, "1.6")));
+
+            var task1_2_2 = new TaskNode("TaskNode-1.2.2", null, PreferredExecMode,
+                           new TaskNode("TaskNode-1.2.2.1", Task1_2_2_1Action, PreferredExecMode));
+
+            var task1_2 = new TaskNode("TaskNode-1.2", null, PreferredExecMode,
+                              new TaskNode("TaskNode-1.2.1", Task1_2_1Action, PreferredExecMode),
+                              task1_2_2,
+                              new TaskNode("TaskNode-1.2.3", Task1_2_3Action, PreferredExecMode),
+                              new TaskNode("TaskNode-1.2.4", Task1_2_4Action, PreferredExecMode));
+
+            rootTask = new TaskNode("TaskNode-1", null, PreferredExecMode,
+                new TaskNode("TaskNode-1.1", Task1_1Action, PreferredExecMode),
+                task1_2,
+                new TaskNode("TaskNode-1.3", Task1_3Action, PreferredExecMode),
+                new TaskNode("TaskNode-1.4", Task1_4Action, PreferredExecMode),
+                new TaskNode("TaskNode-1.5", Task1_5Action, PreferredExecMode),
+                new TaskNode("TaskNode-1.6", Task1_6Action, PreferredExecMode)
+                );
 
             rootTask.Reporting += (sender, eArgs) =>
             {
@@ -69,7 +88,7 @@ namespace Octopus.Sample
         {
             txtError.Text = e.Exception.Message;
             errorBox.Visibility = Visibility.Visible;
-            CreateTasks();
+            CreateTasks(ExecutionMode.Series);
             e.Handled = true;
         }
 
@@ -141,9 +160,8 @@ namespace Octopus.Sample
             {
                 tokenSource = new CancellationTokenSource();
                 var token = tokenSource.Token;
-                await (rdConcurrent.IsChecked.HasValue && rdConcurrent.IsChecked.Value ?
-                    rootTask.ExecuteConcurrently(token, true) :
-                    rootTask.ExecuteInSeries(token, true));
+                CreateTasks(rdConcurrent.IsChecked.Value ? ExecutionMode.Concurrent : ExecutionMode.Series);
+                await rootTask.Execute(cancellationToken: token, throwOnError: true);
             }
             catch (Exception ex)
             {
@@ -202,13 +220,45 @@ namespace Octopus.Sample
 
         private void btnResetClick(object sender, RoutedEventArgs e)
         {
-            CreateTasks();
+            CreateTasks(ExecutionMode.Series);
             btnCancel.IsEnabled = false;
             btnStart.IsEnabled = true;
             pb.Value = 0;
             rdConcurrent.IsChecked = false;
             rdSeries.IsChecked = true;
         }
+
+
+        #region Task Actions
+
+        private Task Task1_1Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 20 }, "1.1");
+
+        private Task Task1_2_1Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { ShouldPerformAnInDeterminateAction = true, InDeterminateActionDelay = 2000 }, "1.2.1");
+
+        private Task Task1_2_2_1Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { ShouldThrowExceptionDuringProgress = false, IntervalDelay = 65 }, "1.2.2.1");
+
+        private Task Task1_2_3Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 60 }, "1.2.3");
+
+        private Task Task1_2_4Action(IProgressReporter reporter, CancellationToken token)
+            => SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 30 }, "1.2.4");
+
+        private Task Task1_3Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 160 }, "1.3");
+
+        private Task Task1_4Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 50 }, "1.4");
+
+        private Task Task1_5Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 20 }, "1.5");
+
+        private Task Task1_6Action(IProgressReporter reporter, CancellationToken token) =>
+            SimpleTimer(reporter, token, defaultCodeBehavior with { IntervalDelay = 250 }, "1.6");
+
+        #endregion
     }
 }
 
