@@ -9,51 +9,101 @@ namespace Octopus.TaskTree
 {
     public class TaskNode : ITaskNode
     {
+        #region Private members
         private static Random rnd = new Random();
         private readonly List<Task> taskObjects = new();
         private readonly List<ITaskNode> childTasks = new();
         private bool hasCustomAction;
-        private Func<IProgressReporter, CancellationToken, Task> action =
+        private CancellableProgressReportingAction action =
             async (rep, tok) => await Task.Yield();
-        public event ProgressReportingEventHandler Reporting;
         private bool seriesRunnerIsBusy;
-        private bool concurrentRunnerIsBusy;
+        private bool concurrentRunnerIsBusy; 
+        #endregion
 
-        public TaskNode()
+        #region Constructors
+
+        private TaskNode()
         {
             this.Id = rnd.Next() + string.Empty;
             this.Reporting += OnSelfReporting;
         }
 
-        public TaskNode(string Id)
+        private TaskNode(string Id)
             : this()
         {
-            this.Id = Id ?? rnd.Next() + string.Empty;
+            this.Id = string.IsNullOrWhiteSpace(Id) ? rnd.Next() + string.Empty : Id;
         }
 
-        public TaskNode(string Id, Func<IProgressReporter, CancellationToken, Task> cancellableProgressReportingAsyncFunction)
-            : this(Id)
+        public TaskNode(string id, CancellableProgressReportingAction action, ExecutionMode preferredExecutionMode, params ITaskNode[] children) : this(id)
         {
-            this.SetAction(cancellableProgressReportingAsyncFunction);
-        }
+            this.PreferredExecutionMode = preferredExecutionMode;
+            if (action != null)
+            {
+                this.SetAction(action);
+            }
+            foreach (var child in children)
+            {
+                this.AddChild(child);
+            }
+        } 
+
+        #endregion
 
         #region Props
 
-        public string Id { get; set; }
+        public string Id { get; private set; }
         public double ProgressValue { get; private set; }
         public object ProgressState { get; private set; }
         public TaskStatus TaskStatus { get; private set; }
         public ITaskNode Parent { get; set; }
         public IEnumerable<ITaskNode> ChildTasks =>
             this.childTasks;
+        public ExecutionMode PreferredExecutionMode { get; set; }
+        public bool ThrowOnError { get; set; }
 
         #endregion Props
 
-        public void AddChild(ITaskNode childTask)
+        #region ITaskNode methods
+        public Task Execute(CancellationToken cancellationToken, bool throwOnError)
+        {
+            return PreferredExecutionMode == ExecutionMode.Concurrent ?
+                ExecuteConcurrently(cancellationToken, throwOnError) :
+                ExecuteInSeries(cancellationToken, throwOnError);
+        }
+
+        public IEnumerable<ITaskNode> ToFlatList()
+        {
+            return FlatList(this);
+        }
+
+        public void ResetStatus()
+        {
+            this.TaskStatus = TaskStatus.NotStarted;
+            this.ProgressState = null;
+            this.ProgressValue = 0;
+        } 
+        #endregion
+
+        #region IProgressReporter - methods
+        public event ProgressReportingEventHandler Reporting;
+        public void Report(TaskStatus taskStatus, double progressValue, object progressState = null)
+        {
+            SafeRaiseReportingEvent(this, new ProgressReportingEventArgs
+            {
+                ChildTasksRunningInParallel = concurrentRunnerIsBusy,
+                TaskStatus = taskStatus,
+                ProgressValue = progressValue,
+                ProgressState = progressState
+            });
+        }
+        #endregion
+
+        #region Private methods
+        private void AddChild(ITaskNode childTask)
         {
             childTask = childTask ?? throw new ArgumentNullException(nameof(childTask));
             childTask.Parent = this;
-            
+
             // Ensure this after setting its parent as this
             EnsureNoCycles(childTask);
 
@@ -128,7 +178,7 @@ namespace Octopus.TaskTree
             });
         }
 
-        public async Task ExecuteConcurrently(CancellationToken cancellationToken, bool throwOnError)
+        private async Task ExecuteConcurrently(CancellationToken cancellationToken, bool throwOnError)
         {
             if (concurrentRunnerIsBusy || seriesRunnerIsBusy) return;
             concurrentRunnerIsBusy = true;
@@ -136,7 +186,7 @@ namespace Octopus.TaskTree
             ResetChildrenProgressValues();
             foreach (var child in childTasks)
             {
-                taskObjects.Add(child.ExecuteConcurrently(cancellationToken, throwOnError));
+                taskObjects.Add(child.Execute(cancellationToken, throwOnError));
             }
 
             taskObjects.Add(ExceptionHandledAction(cancellationToken, throwOnError));
@@ -180,7 +230,7 @@ namespace Octopus.TaskTree
             }
         }
 
-        public async Task ExecuteInSeries(CancellationToken cancellationToken, bool throwOnError)
+        private async Task ExecuteInSeries(CancellationToken cancellationToken, bool throwOnError)
         {
             if (seriesRunnerIsBusy || concurrentRunnerIsBusy) return;
             seriesRunnerIsBusy = true;
@@ -191,7 +241,7 @@ namespace Octopus.TaskTree
                 foreach (var child in childTasks)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
-                    await child.ExecuteInSeries(cancellationToken, throwOnError);
+                    await child.Execute(cancellationToken, throwOnError);
                 }
                 await ExceptionHandledAction(cancellationToken, throwOnError);
             }
@@ -212,11 +262,6 @@ namespace Octopus.TaskTree
             }
         }
 
-        public IEnumerable<ITaskNode> ToFlatList()
-        {
-            return FlatList(this);
-        }
-
         private void SafeRaiseReportingEvent(object sender, ProgressReportingEventArgs args)
         {
             this.Reporting?.Invoke(sender, args);
@@ -231,10 +276,6 @@ namespace Octopus.TaskTree
             }
         }
 
-        /// <summary>
-        /// Throws <see cref="AsyncTasksCycleDetectedException"/>
-         /// </summary>
-        /// <param name="newTask"></param>
         private void EnsureNoCycles(ITaskNode newTask)
         {
             var thisNode = this as ITaskNode;
@@ -269,37 +310,14 @@ namespace Octopus.TaskTree
             }
         }
 
-        public void RemoveChild(ITaskNode childTask)
-        {
-            childTask.Reporting -= OnChildReporting;
-            childTasks.Remove(childTask);
-        }
-
-        public void Report(TaskStatus taskStatus, double progressValue, object progressState = null)
-        {
-            SafeRaiseReportingEvent(this, new ProgressReportingEventArgs
-            {
-                ChildTasksRunningInParallel = concurrentRunnerIsBusy,
-                TaskStatus = taskStatus,
-                ProgressValue = progressValue,
-                ProgressState = progressState
-            });
-        }
-
-        public void SetAction(Func<IProgressReporter, CancellationToken, Task> cancellableProgressReportingAction)
+        private void SetAction(CancellableProgressReportingAction cancellableProgressReportingAction)
         {
             cancellableProgressReportingAction = cancellableProgressReportingAction ??
                 throw new ArgumentNullException(nameof(cancellableProgressReportingAction));
             hasCustomAction = true;
             action = cancellableProgressReportingAction;
-        }
-
-        public void ResetStatus()
-        {
-            this.TaskStatus = TaskStatus.NotStarted;
-            this.ProgressState = null;
-            this.ProgressValue = 0;
-        }
+        } 
+        #endregion
 
         public override string ToString()
         {
