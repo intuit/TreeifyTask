@@ -45,10 +45,6 @@ Overall progress
         await Execute(ExecutionMode.Concurrent);
     }
 
-    private enum ExecutionMode
-    {
-        Series, Concurrent
-    }
     private async Task Execute(ExecutionMode executionMode)
     {
         if (this.progressValue == 100)
@@ -57,16 +53,14 @@ Overall progress
             await Task.Delay(1000);
         }
 
-        CreateTask();
+        CreateTask(executionMode);
 
         cancellationTokenSource = new CancellationTokenSource();
         isBusy = true;
         message = "Starting operation...";
         DateTime start = DateTime.Now;
-        
-        await (executionMode == ExecutionMode.Series ?
-          rootTask.ExecuteInSeries(cancellationTokenSource.Token, false) : 
-          rootTask.ExecuteConcurrently(cancellationTokenSource.Token, false));
+
+        await rootTask.Execute(cancellationTokenSource.Token, false);
 
         isBusy = false;
         TimeSpan duration = DateTime.Now - start;
@@ -77,7 +71,7 @@ Overall progress
 
     private void Reset()
     {
-        CreateTask();
+        CreateTask(ExecutionMode.Series);
     }
 
     private void Cancel()
@@ -85,9 +79,8 @@ Overall progress
         cancellationTokenSource?.Cancel();
     }
 
-    private void CreateTask()
+    private void CreateTask(ExecutionMode executionMode)
     {
-        rootTask = new TaskNode("root");
 
         var task1 = new TaskNode("Task-1", async (reporter, token) =>
         {
@@ -96,10 +89,10 @@ Overall progress
             while (!token.IsCancellationRequested && N < total)
             {
                 await Task.Delay(10);
-                N+=3;
+                N += 3;
                 reporter.Report(TaskTree.TaskStatus.InProgress, (N / total) * 100, "Task-1");
             }
-        });
+        }, executionMode);
 
         var task2 = new TaskNode("Task-2", async (reporter, token) =>
         {
@@ -108,13 +101,12 @@ Overall progress
             while (!token.IsCancellationRequested && N < total)
             {
                 await Task.Delay(100);
-                N+=5;
+                N += 5;
                 reporter.Report(TaskTree.TaskStatus.InProgress, (N / total) * 100, "Task-2");
             }
-        });
+        }, executionMode);
 
-        rootTask.AddChild(task1);
-        rootTask.AddChild(task2);
+        rootTask = new TaskNode("root", null, executionMode, task1, task2);
 
         rootTask.Reporting += (sender, eventArgs) =>
         {
