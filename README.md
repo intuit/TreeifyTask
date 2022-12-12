@@ -69,19 +69,6 @@ rootTask.ExecuteInSeries(cancellationToken: token, throwOnError: true);
 
 ```
 
-## Demo execution
-
-### Series execution with cancellation
-
-![octopus-tasktree-series-exec-with-cancel](https://user-images.githubusercontent.com/23267614/139529825-39ef9a08-b7c9-4d62-8a85-7385c6a93584.gif)
-
-### Concurrent execution successful
-![octopus-tasktree-concur-exec](https://user-images.githubusercontent.com/23267614/139529847-54ff4779-b97d-47b9-bf82-d5f0a5e88fab.gif)
-
-### Concurrent execution with cancellation
-![octopus-tasktree-concur-exec-with-cancel](https://user-images.githubusercontent.com/23267614/139529854-5a16a28c-b327-4d14-975c-a7b4575a700b.gif)
-
-
 > _Please note:_ If `rootTask` has action set to it then the action will run after executing all child tasks in case of series execution. However in concurrent execution, `rootTask`'s action will also be executed along with child tasks and gets the overall progress.
 
 ## Road map
