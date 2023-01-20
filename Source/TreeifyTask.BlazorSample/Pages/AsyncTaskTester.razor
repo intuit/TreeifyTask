@@ -1,0 +1,126 @@
+﻿@page "/asyctest"
+@using Humanizer.Localisation
+@using TreeifyTask;
+@using System.Threading.Tasks;
+@using System.Threading;
+@using Humanizer;
+
+<h3>Async task tester (2 tasks)</h3>
+
+Overall progress
+<div class="progress" style="margin-top:.5rem">
+    <div class="progress-bar" role="progressbar" aria-valuenow="70"
+         aria-valuemin="0" aria-valuemax="100" style="width:@(progressValue)%">
+    </div>
+</div>
+
+<div style="margin-top:20px; display:flex; flex-direction:row">
+    <button type="button" class="btn btn-info btn-sm" @onclick="ExecuteInSeries" disabled="@isBusy">Execute in series</button>
+    <span style="margin-left:10px"></span>
+    <button type="button" class="btn btn-info btn-sm" @onclick="ExecuteConcurrently" disabled="@isBusy">Execute concurrently</button>
+    <span style="margin-left:10px"></span>
+    <button type="button" class="btn btn-secondary btn-sm" @onclick="Cancel" disabled="@(!isBusy)">Cancel</button>
+    <span style="margin-left:10px"></span>
+</div>
+
+<div style="margin-top:10px">
+    <p>@message</p>
+</div>
+
+@code
+{
+    double progressValue = 0;
+    CancellationTokenSource cancellationTokenSource;
+    string message;
+    bool isBusy;
+    ITaskNode rootTask;
+
+    private async Task ExecuteInSeries()
+    {
+        await Execute(ExecutionMode.Series);
+    }
+
+    private async Task ExecuteConcurrently()
+    {
+        await Execute(ExecutionMode.Concurrent);
+    }
+
+    private enum ExecutionMode
+    {
+        Series, Concurrent
+    }
+    private async Task Execute(ExecutionMode executionMode)
+    {
+        if (this.progressValue == 100)
+        {
+            this.progressValue = 0;
+            await Task.Delay(1000);
+        }
+
+        CreateTask();
+
+        cancellationTokenSource = new CancellationTokenSource();
+        isBusy = true;
+        message = "Starting operation...";
+        DateTime start = DateTime.Now;
+
+        await (executionMode == ExecutionMode.Series ?
+          rootTask.ExecuteInSeries(cancellationTokenSource.Token, false) : 
+          rootTask.ExecuteConcurrently(cancellationTokenSource.Token, false));
+
+        isBusy = false;
+        TimeSpan duration = DateTime.Now - start;
+
+        this.progressValue = cancellationTokenSource.IsCancellationRequested ? 0 : 100;
+        this.message = $"Operation {(cancellationTokenSource.IsCancellationRequested ? "Cancelled" : "Completed")}. Took - {duration.Humanize(2, null, TimeUnit.Minute, TimeUnit.Millisecond)}";
+    }
+
+    private void Reset()
+    {
+        CreateTask();
+    }
+
+    private void Cancel()
+    {
+        cancellationTokenSource?.Cancel();
+    }
+
+    private void CreateTask()
+    {
+        rootTask = new TaskNode("root");
+
+        var task1 = new TaskNode("Task-1", async (reporter, token) =>
+        {
+            double N = 0;
+            double total = 1000;
+            while (!token.IsCancellationRequested && N < total)
+            {
+                await Task.Delay(10);
+                N+=3;
+                reporter.Report(TreeifyTask.TaskStatus.InProgress, (N / total) * 100, "Task-1");
+            }
+        });
+
+        var task2 = new TaskNode("Task-2", async (reporter, token) =>
+        {
+            double N = 0;
+            double total = 100;
+            while (!token.IsCancellationRequested && N < total)
+            {
+                await Task.Delay(100);
+                N+=5;
+                reporter.Report(TreeifyTask.TaskStatus.InProgress, (N / total) * 100, "Task-2");
+            }
+        });
+
+        rootTask.AddChild(task1);
+        rootTask.AddChild(task2);
+
+        rootTask.Reporting += (sender, eventArgs) =>
+        {
+            this.progressValue = eventArgs.ProgressValue;
+            this.message = $"Execution in progress: State:{eventArgs.ProgressState}, Progress:{this.progressValue:N2}%";
+            StateHasChanged();
+        };
+    }
+}
