@@ -1,6 +1,6 @@
 # TreeifyTask - A dotnet component (formerly known as "Octopus.TaskTree")
 
-[![Release to Nuget](https://github.com/gokulegit/Octopus/actions/workflows/publish.yml/badge.svg?branch=1.1.1)](https://github.com/gokulegit/Octopus/actions/workflows/publish.yml) [![NuGet Downloads](https://img.shields.io/nuget/dt/Octopus.TaskTree.svg)](https://www.nuget.org/packages/Octopus.TaskTree) ![Nuget Version](https://img.shields.io/nuget/v/Octopus.TaskTree?label=nuget)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Octopus.TaskTree.svg)](https://www.nuget.org/packages/Octopus.TaskTree) ![Nuget Version](https://img.shields.io/nuget/v/Octopus.TaskTree?label=nuget)
 
 Dotnet component that helps you to manage `async` tasks in a hierarchical fashion.
 
