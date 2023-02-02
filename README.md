@@ -2,13 +2,11 @@
 
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Octopus.TaskTree.svg)](https://www.nuget.org/packages/Octopus.TaskTree) ![Nuget Version](https://img.shields.io/nuget/v/Octopus.TaskTree?label=nuget)
 
-Dotnet component that helps you to manage `async` tasks in a hierarchical fashion.
+Dotnet component that helps you to manage `async` tasks in a custom hierarchical fashion.
 
-There are situations that we might have to manage tasks in a tree like structure. Means, the parent task depends on child tasks to be completed in a serial or concurrent fashion. The parent task needs to show the average progress value of overall operation.
+This really helps in situations where we need to manage task execution in a tree like structure. For example, a parent task depends on multiple child tasks to be completed in a sequence or parallel mode. Also, along with the execution, parent task needs to show the average progress information of the  overall operation.
 
-This component `ITaskNode` lets you to Create a task, Set a custom asynchronous function `Func<IProgressReporter, CancellationToken, Task>` for it, Create one or more child tasks and get overall progress.
-
-You have several options that you can execute them concurrently or in series. The overall progress will be updated to parent task.
+With this component, `ITaskNode` lets you to Create a task, set up a custom asynchronous function `Func<IProgressReporter, CancellationToken, Task>` for it. It allows to create one or more child tasks and get overall progress.
 
 Please see below code snippet for the better understanding.
 
@@ -75,8 +73,7 @@ rootTask.ExecuteInSeries(cancellationToken: token, throwOnError: true);
 
 This is the initial version of the component. Please raise issues if you find any. Comments, suggestions and contributions are always welcome. 
 
-Here's the list of items in backlog for the upcoming releases
-
+Here's the list of items in backlog for the upcoming releases:
 - [x] Core Component
 - [x] Wpf Sample
 - [x] Blazor Server Sample
