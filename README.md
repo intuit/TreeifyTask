@@ -1,5 +1,7 @@
 # TreeifyTask - DotNet library for managing tasks in a custom hierarchical fashion
 
+[![Build](https://github.com/intuit/TreeifyTask/actions/workflows/dotnet-desktop.yml/badge.svg)](https://github.com/intuit/TreeifyTask/actions/workflows/dotnet-desktop.yml)
+
 Dotnet component that helps you to manage `async` tasks in a custom hierarchical fashion.
 
 This really helps in situations where we need to manage task execution in a tree like structure. For example, a parent task depends on multiple child tasks to be completed in a sequence or parallel mode. Also, along with the execution, parent task needs to show the average progress information of the  overall operation.
