@@ -1,0 +1,46 @@
+name: Release to Nuget
+
+# on:
+#   push:
+#     branches:
+#       - main # Default release branch, may also be named 'master' or 'develop'
+
+on:
+  release:
+    types: [published]
+      
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 6.0.x
+    - name: Publish to all targets
+      run: |
+        dotnet publish -c Release -f netcoreapp2.1
+        dotnet publish -c Release -f netcoreapp2.2
+        dotnet publish -c Release -f netcoreapp3.0
+        dotnet publish -c Release -f netcoreapp3.1
+        dotnet publish -c Release -f net5
+        dotnet publish -c Release -f net6
+        dotnet publish -c Release -f net48
+      working-directory: ./Source/TreeifyTask
+      
+    - name: Create NuGet Package
+      run: dotnet pack -c Release /p:Version=${{ github.event.release.tag_name }} /p:PackageReleaseNotes="See https://github.com/intuit/TreeifyTask/releases/tag/${{ github.event.release.tag_name }}"
+      working-directory: ./Source/TreeifyTask      
+      
+    - name: Archive NuGet Package
+      uses: actions/upload-artifact@v1
+      with:
+        name: TreeifyTask
+        path: ./Source/TreeifyTask/bin/Release/TreeifyTask.${{ github.event.release.tag_name }}.nupkg
+        
+    - name: Publish Nuget Package
+      run: dotnet nuget push TreeifyTask.${{ github.event.release.tag_name }}.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --no-symbols --skip-duplicate
+      working-directory: ./Source/TreeifyTask/bin/Release      
