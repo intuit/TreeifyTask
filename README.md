@@ -4,7 +4,7 @@
 
 Dotnet component that helps you to manage `async` tasks in a custom hierarchical fashion.
 
-This really helps in situations where we need to manage task execution in a tree like structure. For example, a parent task depends on multiple child tasks to be completed in a sequence or parallel mode. Also, along with the execution, parent task needs to show the average progress information of the  overall operation.
+This helps in situations where you need to manage task execution in a tree like structure. For example, a parent task depends on multiple child tasks to be completed in a sequence or parallel mode. Also, along with the execution, parent task needs to show the average progress information of the  overall operation.
 
 With this component, `ITaskNode` lets you to Create a task, set up a custom asynchronous function `Func<IProgressReporter, CancellationToken, Task>` for it. It allows to create one or more child tasks and get overall progress.
 
